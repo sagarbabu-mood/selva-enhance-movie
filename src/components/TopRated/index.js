@@ -1,104 +1,80 @@
+import React from 'react'
 import Loader from 'react-loader-spinner'
 
-import {Component} from 'react'
-
 import MovieCard from '../MovieCard'
+import NavBar from '../NavBar'
+import Pagination from '../Pagination'
 
 import './index.css'
 
-class TopRated extends Component {
-  state = {loading: true, MovieList: [], currentPage: 1}
+class TopRated extends React.Component {
+  state = {
+    isLoading: true,
+    topRatedMovieResponse: {},
+  }
 
   componentDidMount() {
-    this.getPopularMovies()
+    this.getTopRatedMoviesResponse()
   }
 
-  caseConvert = arr =>
-    arr.map(item => ({
-      id: item.id,
-      posterPath: item.poster_path,
-      title: item.title,
-      voteAverage: item.vote_average,
-    }))
+  getUpdatedData = responseData => ({
+    totalPages: responseData.total_pages,
+    totalResults: responseData.total_results,
+    results: responseData.results.map(eachMovie => ({
+      id: eachMovie.id,
+      posterPath: `https://image.tmdb.org/t/p/w500${eachMovie.poster_path}`,
+      voteAverage: eachMovie.vote_average,
+      title: eachMovie.title,
+    })),
+  })
 
-  getPopularMovies = async () => {
-    const {currentPage} = this.state
-    const PopularApi = `https://api.themoviedb.org/3/movie/top_rated?api_key=3bc3168ec6c38084807eb13705f78318&language=en-US&page=${currentPage}`
-    const response = await fetch(PopularApi)
-    if (response.ok === true) {
-      const dataObj = await response.json()
-      const modifiedMovieList = this.caseConvert(dataObj.results)
-      this.setState(prevState => ({
-        MovieList: modifiedMovieList,
-        loading: !prevState.loading,
-      }))
-    }
+  getTopRatedMoviesResponse = async (page = 1) => {
+    const API_KEY = '3bc3168ec6c38084807eb13705f78318'
+    const apiUrl = `https://api.themoviedb.org/3/movie/top_rated?api_key=${API_KEY}&language=en-US&page=${page}`
+    const response = await fetch(apiUrl)
+    const data = await response.json()
+    const newData = this.getUpdatedData(data)
+    this.setState({isLoading: false, topRatedMovieResponse: newData})
   }
 
-  turnPage = () => {
-    this.setState(
-      prevState => ({
-        currentPage: prevState.currentPage + 1,
-        loading: !prevState.loading,
-      }),
-      this.getPopularMovies,
+  renderLoadingView = () => (
+    <div className="loader-container">
+      <Loader type="TailSpin" color="#032541" />
+    </div>
+  )
+
+  renderPopularMoviesList = () => {
+    const {topRatedMovieResponse} = this.state
+    const {results} = topRatedMovieResponse
+
+    return (
+      <ul className="con">
+        {results.map(movie => (
+          <MovieCard key={movie.id} movieDetails={movie} />
+        ))}
+      </ul>
     )
   }
 
-  prevPage = () => {
-    const {currentPage} = this.state
-
-    if (currentPage > 1) {
-      this.setState(
-        prevState => ({
-          currentPage: prevState.currentPage - 1,
-          loading: !prevState.loading,
-        }),
-        this.getPopularMovies,
-      )
-    }
-  }
-
   render() {
-    const {MovieList, loading, currentPage} = this.state
-    // console.log(MovieList);
+    const {isLoading, topRatedMovieResponse} = this.state
+
     return (
       <>
-        {loading ? (
-          <section className="loader-container">
-            <Loader type="Oval" color="green" className="loader-style" />
-          </section>
-        ) : (
-          <section className="section-container">
-            <div className="popular-container ">
-              <p className="route-heading">Top-Rated Movies</p>
-              <div className="pagination">
-                <button
-                  onClick={this.prevPage}
-                  className="next-page"
-                  type="button"
-                >
-                  Prev
-                </button>
-                <p className="page-numbers">{currentPage}</p>
-                <button
-                  onClick={this.turnPage}
-                  className="next-page"
-                  type="button"
-                >
-                  next
-                </button>
-              </div>
-              <ul className="movie-list-container">
-                {MovieList.map(item => (
-                  <MovieCard key={item.id} details={item} />
-                ))}
-              </ul>
-            </div>
-          </section>
-        )}
+        {' '}
+        <NavBar />
+        <div className="route-page-body">
+          {isLoading
+            ? this.renderLoadingView()
+            : this.renderPopularMoviesList()}
+        </div>
+        <Pagination
+          totalPages={topRatedMovieResponse.totalPages}
+          apiCallback={this.getTopRatedMoviesResponse}
+        />
       </>
     )
   }
 }
+
 export default TopRated
